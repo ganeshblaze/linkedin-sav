@@ -65,9 +65,9 @@ export const parseLinkedInUrl = (url) => {
 };
 
 // Helper function to clean and format names/topics
-const formatText = (text) => {
-  return text
-    .split('-')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-};
+// const formatText = (text) => {
+//   return text
+//     .split('-')
+//     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+//     .join(' ');
+// };
