@@ -1,5 +1,5 @@
 import React from 'react';
-import { ExternalLink, Calendar, Tag, Trash2, User } from 'lucide-react';
+import { ExternalLink, Calendar, Tag, User } from 'lucide-react';
 
 const PostCard = ({ post, onDelete }) => {
   const handleVisitPost = () => {
