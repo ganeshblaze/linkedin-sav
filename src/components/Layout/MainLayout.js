@@ -4,7 +4,7 @@ import AddPost from '../pages/AddPost';
 import ViewPosts from '../pages/ViewPosts';
 import { usePosts } from '../../hooks/usePost';
 
-const MainLayout = () => {
+const MainLayout = ({ isAuthenticated = false }) => {
   const [activeTab, setActiveTab] = useState('add');
   const { posts, loading, addNewPost, removePost, refreshPosts } = usePosts();
 
@@ -14,6 +14,7 @@ const MainLayout = () => {
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
         postsCount={posts.length}
+        isAuthenticated={isAuthenticated}
       />
       
       <main className="max-w-6xl mx-auto px-4 py-8">
@@ -21,6 +22,7 @@ const MainLayout = () => {
           <AddPost 
             onPostAdded={addNewPost}
             onSwitchToView={() => setActiveTab('view')}
+            isAuthenticated={isAuthenticated}
           />
         )}
         
@@ -30,6 +32,7 @@ const MainLayout = () => {
             loading={loading}
             onRefresh={refreshPosts}
             onDeletePost={removePost}
+            isAuthenticated={isAuthenticated}
           />
         )}
       </main>

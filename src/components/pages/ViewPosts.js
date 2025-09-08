@@ -1,17 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import { Search, Filter, BookmarkPlus } from 'lucide-react';
 import PostCard from '../common/PostCard';
 import ConfirmDeleteModal from '../common/ConfirmDeleteModal';
 
-const ViewPosts = ({ posts, loading, onRefresh, onDeletePost }) => {
+const ViewPosts = ({ posts, loading, onRefresh, onDeletePost, isAuthenticated = false }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTag, setSelectedTag] = useState('');
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, post: null });
-
+  const [isAuthenticatedProp, setIsAuthenticatedProp] = useState(isAuthenticated) 
   // Get all unique tags
   const allTags = [...new Set(posts.flatMap(post => post.tags || []))];
 
-  // Filter posts based on search and tag
+useEffect(() => {
+    const storedAuth = sessionStorage.getItem('app_authenticated');
+    if (storedAuth === 'true') {
+      setIsAuthenticatedProp(true);
+    }
+  }, []);  // Filter posts based on search and tag
   const filteredPosts = posts.filter(post => {
     const matchesSearch = (post.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
                          (post.author?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
@@ -100,19 +105,22 @@ const ViewPosts = ({ posts, loading, onRefresh, onDeletePost }) => {
             <PostCard 
               key={post.id} 
               post={post} 
-              onDelete={() => handleDeleteClick(post)}
+              onDelete={isAuthenticatedProp ? () => handleDeleteClick(post) : undefined}
+              isAuthenticated={isAuthenticatedProp}
             />
           ))}
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      <ConfirmDeleteModal
-        isOpen={deleteModal.isOpen}
-        post={deleteModal.post}
-        onConfirm={handleConfirmDelete}
-        onCancel={handleCancelDelete}
-      />
+      {/* Delete Confirmation Modal - Only render if authenticated */}
+      {isAuthenticatedProp && (
+        <ConfirmDeleteModal
+          isOpen={deleteModal.isOpen}
+          post={deleteModal.post}
+          onConfirm={handleConfirmDelete}
+          onCancel={handleCancelDelete}
+        />
+      )}
     </div>
   );
 };
