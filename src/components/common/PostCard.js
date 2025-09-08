@@ -1,7 +1,7 @@
 import React from 'react';
-import { ExternalLink, Calendar, Tag, User } from 'lucide-react';
+import { ExternalLink, Calendar, Tag, User, Trash2 } from 'lucide-react';
 
-const PostCard = ({ post, onDelete }) => {
+const PostCard = ({ post, onDelete, isAuthenticated = false }) => {
   const handleVisitPost = () => {
     window.open(post.url, '_blank', 'noopener,noreferrer');
   };
@@ -36,17 +36,16 @@ const PostCard = ({ post, onDelete }) => {
             >
               <ExternalLink size={16} />
             </button>
-            {/* ***** uncomment after full release**** */}
-            {/* {onDelete && (
+            {/* Only show delete button if authenticated and onDelete is provided */}
+            {isAuthenticated && onDelete && (
               <button
                 onClick={onDelete}
-                disabled={true}
                 className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
                 title="Delete Post"
               >
                 <Trash2 size={16} />
               </button>
-            )} */}
+            )}
           </div>
         </div>
       </div>

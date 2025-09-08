@@ -1,6 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Tag, X, ChevronDown, Info, XIcon } from 'lucide-react';
+import { Tag, X, ChevronDown, Info, Lock, Eye, EyeOff } from 'lucide-react';
 import { parseLinkedInUrl } from '../../utils/linkedinParser';
+
+// Simple SHA-256 hash function (you can also use crypto-js if available)
+const sha256 = async (message) => {
+  const msgBuffer = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+// Store the SHA-256 hash of your master password
+// Current hash is for password: "MySecurePassword123!" 
+// Change this to your own password hash (see instructions below)
+const MASTER_PASSWORD_HASH = "67eeaa5b2fb45a087477216417a747794c5650a22c99012af54313cf5caa761c";
 
 // Hardcoded tags - you can modify this array to add/remove tags
 const AVAILABLE_TAGS = [
@@ -35,8 +48,64 @@ const AddPost = ({ onPostAdded, onSwitchToView }) => {
   const [error, setError] = useState('');
   const [showStoryModal, setShowStoryModal] = useState(false);
   
+  // Authentication states
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  
   // Ref for the dropdown container
   const dropdownRef = useRef(null);
+
+  // Check for stored authentication on component mount
+  useEffect(() => {
+    const storedAuth = sessionStorage.getItem('app_authenticated');
+    if (storedAuth === 'true') {
+      setIsAuthenticated(true);
+    }
+  }, []);
+
+  // Password verification function
+  const verifyPassword = async () => {
+    if (!passwordInput.trim()) {
+      setAuthError('Please enter the password');
+      return;
+    }
+
+    setAuthLoading(true);
+    setAuthError('');
+
+    try {
+      const inputHash = await sha256(passwordInput);
+      
+      if (inputHash === MASTER_PASSWORD_HASH) {
+        setIsAuthenticated(true);
+        sessionStorage.setItem('app_authenticated', 'true'); // Remember for session
+        setPasswordInput('');
+        // Close modal after successful authentication
+        const modal = document.getElementById('auth-modal');
+        if (modal) {
+          modal.style.display = 'none';
+        }
+      } else {
+        setAuthError('Incorrect password. Access denied.');
+        setTimeout(() => setAuthError(''), 3000); // Clear error after 3 seconds
+      }
+    } catch (error) {
+      setAuthError('Authentication error. Please try again.');
+      setTimeout(() => setAuthError(''), 3000);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  // Logout function
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    sessionStorage.removeItem('app_authenticated');
+    setPasswordInput('');
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -99,10 +168,8 @@ const AddPost = ({ onPostAdded, onSwitchToView }) => {
 
   return (
     <div className="max-w-2xl mx-auto">
-      {/* Authentication Banner */}
-     
 
-      {/* Story Banner */}
+        {/* Story Banner - Always visible */}
       <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-6 mb-6">
         <div className="text-center">
           <h3 className="text-lg font-semibold text-purple-800 mb-2">
@@ -120,6 +187,174 @@ const AddPost = ({ onPostAdded, onSwitchToView }) => {
         </div>
       </div>
 
+      {/* Authentication Check */}
+      {!isAuthenticated ? (
+        <>
+          {/* Authentication Banner */}
+          <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center">
+              <Lock className="h-5 w-5 text-red-600 mr-2" />
+              <span className="text-red-800 font-medium">Authentication Required - Enter password to access features.
+                <br/> Currently there is no signUp. Feel free to explore the saved posts section :)
+              </span>
+            </div>
+          </div>
+
+          {/* Locked Form Preview */}
+          <div className="bg-white rounded-lg shadow-sm border p-8 mb-6 opacity-50 pointer-events-none relative">
+            <div className="absolute inset-0 bg-gray-100 bg-opacity-50 rounded-lg flex items-center justify-center">
+              <div className="text-center">
+                <Lock className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                <p className="text-gray-600 font-medium">Authenticate to unlock features</p>
+              </div>
+            </div>
+            
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Save LinkedIn Post</h2>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  LinkedIn Post URL
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://linkedin.com/posts/..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                  disabled
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tags
+                </label>
+                <button
+                  type="button"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-left flex items-center justify-between"
+                  disabled
+                >
+                  <span className="text-gray-500">Select tags...</span>
+                  <ChevronDown size={20} className="text-gray-400" />
+                </button>
+              </div>
+              
+              <button
+                disabled
+                className="w-full bg-gray-400 text-white py-3 px-4 rounded-lg font-medium cursor-not-allowed"
+              >
+                Save Post
+              </button>
+            </div>
+          </div>
+
+          {/* Floating Authentication Button */}
+          <div className="fixed bottom-6 right-6 z-50">
+            <button
+              onClick={() => {
+                const modal = document.getElementById('auth-modal');
+                if (modal) {
+                  modal.style.display = 'flex';
+                }
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg transition-all duration-200 hover:scale-110 flex items-center justify-center"
+            >
+              <Lock className="h-6 w-6" />
+            </button>
+          </div>
+
+          {/* Authentication Modal */}
+          <div 
+            id="auth-modal"
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            style={{display: 'none'}}
+          >
+            <div className="bg-white rounded-xl max-w-md w-full">
+              <div className="p-6">
+                {/* Modal Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-gray-900 flex items-center">
+                    <Lock className="h-5 w-5 mr-2" />
+                    Secure Access
+                  </h2>
+                  <button
+                    onClick={() => {
+                      const modal = document.getElementById('auth-modal');
+                      setPasswordInput('');
+                      if (modal) {
+                        modal.style.display = 'none';
+                      }
+                    }}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+
+                {authError && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                    <p className="text-sm text-red-700">{authError}</p>
+                  </div>
+                )}
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Master Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={passwordInput}
+                        onChange={(e) => setPasswordInput(e.target.value)}
+                        placeholder="Enter your master password"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
+                        onKeyDown={(e) => e.key === 'Enter' && verifyPassword()}
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={verifyPassword}
+                    disabled={authLoading || !passwordInput.trim()}
+                    className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {authLoading ? 'Verifying...' : 'Authenticate'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Authenticated User Banner */}
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Info className="h-5 w-5 text-green-600 mr-2" />
+                <span className="text-green-800 font-medium">Authenticated - Full access enabled</span>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="text-sm text-green-700 hover:text-green-900 underline"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+    
+
       {/* Story Modal */}
       {showStoryModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -127,12 +362,12 @@ const AddPost = ({ onPostAdded, onSwitchToView }) => {
             <div className="p-6">
               {/* Modal Header */}
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-gray-900">Behind the scenes</h2>
+                <h2 className="text-2xl font-bold text-gray-900">Our Story</h2>
                 <button
                   onClick={() => setShowStoryModal(false)}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  <XIcon size={24} />
+                  <X size={24} />
                 </button>
               </div>
 
@@ -174,6 +409,9 @@ const AddPost = ({ onPostAdded, onSwitchToView }) => {
                 <p>
                   Currently, this is my personal workspace where I organize posts by tags like React, System Design, Career Advice, and more. But the vision is bigger - to scale this solution for public use, giving every professional the power to organize their LinkedIn discoveries the way they want.
                 </p>
+                {/* <p>
+                  <em>Because sometimes, when big tech doesn't solve your problems, you have to roll up your sleeves, prompt some AI models, and build the solution yourself - proving that in 2024, creativity and problem-solving matter more than typing syntax.</em>
+                </p> */}
               </div>
 
               {/* Modal Footer */}
@@ -190,126 +428,114 @@ const AddPost = ({ onPostAdded, onSwitchToView }) => {
         </div>
       )}
 
-       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Info className="h-5 w-5 text-blue-600 mr-2" />
-            <span className="text-blue-800 font-medium">Currently Authentication is in progress... <br/>
-              The save feature is only available for the creator of the application at the moment.
-              Feel free to browse through the Saved Posts :)
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Form */}
-      <div className="bg-white rounded-lg shadow-sm border p-8">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">Save LinkedIn Post</h2>
-        
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-sm text-red-700">{error}</p>
-          </div>
-        )}
-        
-        <div className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              LinkedIn Post URL
-            </label>
-            <input
-              type="url"
-              value={newUrl}
-              disabled={true}
-              onChange={(e) => {
-                setNewUrl(e.target.value)
-                setError("")
-              }}
-              placeholder="https://linkedin.com/posts/..."
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              onKeyDown={(e) => e.key === 'Enter' && handleAddPost(e)}
-            />
-          </div>
+      {/* Main Form - Only visible when authenticated */}
+      {isAuthenticated && (
+        <div className="bg-white rounded-lg shadow-sm border p-8">
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">Save LinkedIn Post</h2>
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tags
-            </label>
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
+          
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                LinkedIn Post URL
+              </label>
+              <input
+                type="url"
+                value={newUrl}
+                onChange={(e) => {
+                  setNewUrl(e.target.value)
+                  setError("")
+                }}
+                placeholder="https://linkedin.com/posts/..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onKeyDown={(e) => e.key === 'Enter' && handleAddPost(e)}
+              />
+            </div>
             
-            {/* Selected Tags Display */}
-            {selectedTags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
-                {selectedTags.map(tag => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
-                  >
-                    <Tag size={14} className="mr-1" />
-                    {tag}
-                    <button
-                      onClick={() => removeTag(tag)}
-                      className="ml-2 text-blue-600 hover:text-blue-800"
-                    >
-                      <X size={14} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-            
-            {/* Dropdown */}
-            <div className="relative" ref={dropdownRef}>
-              <button
-                type="button"
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-left focus:ring-2 focus:ring-blue-500 focus:border-transparent flex items-center justify-between"
-              >
-                <span className="text-gray-500">
-                  {selectedTags.length > 0 
-                    ? `${selectedTags.length} tag${selectedTags.length > 1 ? 's' : ''} selected`
-                    : 'Select tags...'
-                  }
-                </span>
-                <ChevronDown 
-                  size={20} 
-                  className={`text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} 
-                />
-              </button>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tags
+              </label>
               
-              {isDropdownOpen && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {availableTagsToShow.length > 0 ? (
-                    availableTagsToShow.map(tag => (
+              {/* Selected Tags Display */}
+              {selectedTags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {selectedTags.map(tag => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
+                    >
+                      <Tag size={14} className="mr-1" />
+                      {tag}
                       <button
-                        key={tag}
-                        type="button"
-                        onClick={() => handleTagToggle(tag)}
-                        className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center"
+                        onClick={() => removeTag(tag)}
+                        className="ml-2 text-blue-600 hover:text-blue-800"
                       >
-                        <Tag size={16} className="mr-2 text-gray-400" />
-                        {tag}
+                        <X size={14} />
                       </button>
-                    ))
-                  ) : (
-                    <div className="px-4 py-2 text-gray-500 text-sm">
-                      All tags selected
-                    </div>
-                  )}
+                    </span>
+                  ))}
                 </div>
               )}
+              
+              {/* Dropdown */}
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-left focus:ring-2 focus:ring-blue-500 focus:border-transparent flex items-center justify-between"
+                >
+                  <span className="text-gray-500">
+                    {selectedTags.length > 0 
+                      ? `${selectedTags.length} tag${selectedTags.length > 1 ? 's' : ''} selected`
+                      : 'Select tags...'
+                    }
+                  </span>
+                  <ChevronDown 
+                    size={20} 
+                    className={`text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} 
+                  />
+                </button>
+                
+                {isDropdownOpen && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {availableTagsToShow.length > 0 ? (
+                      availableTagsToShow.map(tag => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => handleTagToggle(tag)}
+                          className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center"
+                        >
+                          <Tag size={16} className="mr-2 text-gray-400" />
+                          {tag}
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-4 py-2 text-gray-500 text-sm">
+                        All tags selected
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
+            
+            <button
+              onClick={handleAddPost}
+              disabled={loading}
+              className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {loading ? 'Saving...' : 'Save Post'}
+            </button>
           </div>
-          
-          <button
-            onClick={handleAddPost}
-            disabled={true}
-            // disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-pointing transition-colors"
-          >
-            {loading ? 'Saving...' : 'Save Post'}
-          </button>
         </div>
-      </div>
+      )}
     </div>
   );
 };
