@@ -40,7 +40,7 @@ const PostCard = ({ post, onDelete, isAuthenticated = false }) => {
             {isAuthenticated && onDelete && (
               <button
                 onClick={onDelete}
-                disabled={true}
+                disabled={false}
                 className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
                 title="Delete Post"
               >
