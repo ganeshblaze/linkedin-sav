@@ -87,7 +87,7 @@ const PostCard = ({ post, onDelete, isAuthenticated = false }) => {
         {post.dateAdded && (
           <div className="flex items-center text-xs text-gray-500">
             <Calendar size={12} className="mr-1" />
-            Saved on {new Date(post.dateAdded).toLocaleDateString()}
+            Saved on {new Date(post.dateAdded).toLocaleDateString('en-GB')}
           </div>
         )}
       </div>
