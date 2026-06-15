@@ -13,16 +13,13 @@ import {
   
   export const addPost = async (postData) => {
     try {
-      console.log('Attempting to add post:', postData);
-      console.log('Database instance:', db);
-      console.log('Collection name:', COLLECTION_NAME);
+    
       
       const docRef = await addDoc(collection(db, COLLECTION_NAME), {
         ...postData,
         createdAt: new Date(),
       });
       
-      console.log('Post added successfully with ID:', docRef.id);
       return docRef.id;
     } catch (error) {
       console.error('Error adding post - Full error:', error);
@@ -34,7 +31,6 @@ import {
   
   export const getPosts = async () => {
     try {
-      console.log('Attempting to get posts from:', COLLECTION_NAME);
       const q = query(collection(db, COLLECTION_NAME), orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
       console.log('Retrieved posts count:', querySnapshot.docs.length);
